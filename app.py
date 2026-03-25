@@ -12,14 +12,25 @@ st.set_page_config(page_title="Brain Tumor Detection", page_icon="🧠", layout=
 # ---------------------------
 # Load model
 # ---------------------------
-model = load_model("brain_tumor_model.h5")
+@st.cache_resource
+def get_model():
+    # compile=False avoids legacy training config/metric deserialize issues on cloud.
+    return load_model("brain_tumor_model.h5", compile=False)
 
-# Load class indices
-with open("class_indices.json", "r") as f:
-    class_indices = json.load(f)
 
-# Reverse mapping (0 -> No Tumor, 1 -> Tumor)
-labels = {v:k for k,v in class_indices.items()}
+@st.cache_data
+def get_class_indices():
+    with open("class_indices.json", "r") as f:
+        return json.load(f)
+
+
+try:
+    model = get_model()
+    class_indices = get_class_indices()
+except Exception as e:
+    st.error("Model failed to load. Please check deployment logs.")
+    st.exception(e)
+    st.stop()
 
 # ---------------------------
 # UI
