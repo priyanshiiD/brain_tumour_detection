@@ -1,8 +1,8 @@
 import streamlit as st
 import numpy as np
-import cv2
 import json
 from pathlib import Path
+from PIL import Image
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
@@ -45,7 +45,8 @@ def render_prediction(img, caption_text):
     with display_col:
         st.image(img, caption=caption_text, use_container_width=True)
 
-    img_resized = cv2.resize(img, (224,224))
+    img_pil = Image.fromarray(img).convert("RGB")
+    img_resized = img_pil.resize((224, 224))
     img_array = image.img_to_array(img_resized)
     img_array = np.expand_dims(img_array, axis=0)
     img_array = preprocess_input(img_array)
@@ -78,13 +79,13 @@ input_mode = st.radio("Choose image source", ["Upload image", "Use sample image"
 if input_mode == "Upload image":
     uploaded_file = st.file_uploader("Upload MRI Image", type=["jpg", "png", "jpeg"])
     if uploaded_file is not None:
-        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-        img = cv2.imdecode(file_bytes, 1)
+        uploaded_image = Image.open(uploaded_file).convert("RGB")
+        img = np.array(uploaded_image)
         render_prediction(img, "Uploaded MRI")
 else:
     if sample_paths:
         selected_sample = st.selectbox("Select sample image", sample_paths, format_func=lambda p: p.name)
-        sample_img = cv2.imread(str(selected_sample))
+        sample_img = np.array(Image.open(selected_sample).convert("RGB"))
         render_prediction(sample_img, f"Sample MRI: {selected_sample.name}")
     else:
         st.info("No sample images found in sample_images folder.")
