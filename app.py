@@ -3,9 +3,16 @@ import numpy as np
 import json
 from pathlib import Path
 from PIL import Image
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing import image
-from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
+
+TF_IMPORT_ERROR = None
+try:
+    from keras.models import load_model
+    from keras.utils import img_to_array
+    from keras.applications.mobilenet_v2 import preprocess_input
+    TF_AVAILABLE = True
+except Exception as e:
+    TF_AVAILABLE = False
+    TF_IMPORT_ERROR = e
 
 st.set_page_config(page_title="Brain Tumor Detection", page_icon="🧠", layout="wide")
 
@@ -24,13 +31,17 @@ def get_class_indices():
         return json.load(f)
 
 
-try:
-    model = get_model()
-    class_indices = get_class_indices()
-except Exception as e:
-    st.error("Model failed to load. Please check deployment logs.")
-    st.exception(e)
-    st.stop()
+class_indices = get_class_indices()
+model = None
+model_error = None
+
+if TF_AVAILABLE:
+    try:
+        model = get_model()
+    except Exception as e:
+        model_error = e
+else:
+    model_error = TF_IMPORT_ERROR
 
 # ---------------------------
 # UI
@@ -42,6 +53,8 @@ with st.sidebar:
     st.markdown("[Open on Kaggle](https://www.kaggle.com/datasets/navoneel/brain-mri-images-for-brain-tumor-detection)")
     st.divider()
     st.caption("Upload one MRI image and the model will classify it as Tumor or No Tumor.")
+    if model is None:
+        st.warning("Prediction model is unavailable in this environment.")
 
 st.title("Brain Tumor Detection")
 st.write("Upload an MRI image or pick a sample image to test the model.")
@@ -51,6 +64,11 @@ st.write("Upload an MRI image or pick a sample image to test the model.")
 # ---------------------------
 
 def render_prediction(img, caption_text):
+    if model is None:
+        st.error("Prediction is unavailable because model dependencies are not loading in this environment.")
+        st.info("Use Python 3.11 with requirements from this repository for deployment.")
+        return
+
     display_col, result_col = st.columns([1.2, 1])
 
     with display_col:
@@ -58,7 +76,7 @@ def render_prediction(img, caption_text):
 
     img_pil = Image.fromarray(img).convert("RGB")
     img_resized = img_pil.resize((224, 224))
-    img_array = image.img_to_array(img_resized)
+    img_array = img_to_array(img_resized)
     img_array = np.expand_dims(img_array, axis=0)
     img_array = preprocess_input(img_array)
 
@@ -100,3 +118,7 @@ else:
         render_prediction(sample_img, f"Sample MRI: {selected_sample.name}")
     else:
         st.info("No sample images found in sample_images folder.")
+
+if model_error is not None:
+    with st.expander("Model error details", expanded=False):
+        st.exception(model_error)
