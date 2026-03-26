@@ -6,11 +6,9 @@ from PIL import Image
 
 TF_IMPORT_ERROR = None
 try:
-    from keras.models import load_model
-    from keras.layers import Dense as KerasDense
-    from keras.layers import InputLayer as KerasInputLayer
-    from keras.utils import img_to_array
-    from keras.applications.mobilenet_v2 import preprocess_input
+    from tensorflow.keras.models import load_model
+    from tensorflow.keras.preprocessing import image
+    from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
     TF_AVAILABLE = True
 except Exception as e:
     TF_AVAILABLE = False
@@ -21,33 +19,10 @@ st.set_page_config(page_title="Brain Tumor Detection", page_icon="🧠", layout=
 # ---------------------------
 # Load model
 # ---------------------------
-class CompatDense(KerasDense):
-    @classmethod
-    def from_config(cls, config):
-        config.pop("quantization_config", None)
-        return super().from_config(config)
-
-
-class CompatInputLayer(KerasInputLayer):
-    @classmethod
-    def from_config(cls, config):
-        config.pop("optional", None)
-        if "batch_shape" in config and "batch_input_shape" not in config:
-            config["batch_input_shape"] = config.pop("batch_shape")
-        return super().from_config(config)
-
-
 @st.cache_resource
 def get_model():
     # compile=False avoids legacy training config/metric deserialize issues on cloud.
-    return load_model(
-        "brain_tumor_model.h5",
-        compile=False,
-        custom_objects={
-            "Dense": CompatDense,
-            "InputLayer": CompatInputLayer,
-        },
-    )
+    return load_model("brain_tumor_model.h5", compile=False)
 
 
 @st.cache_data
@@ -101,7 +76,7 @@ def render_prediction(img, caption_text):
 
     img_pil = Image.fromarray(img).convert("RGB")
     img_resized = img_pil.resize((224, 224))
-    img_array = img_to_array(img_resized)
+    img_array = image.img_to_array(img_resized)
     img_array = np.expand_dims(img_array, axis=0)
     img_array = preprocess_input(img_array)
 
