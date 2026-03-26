@@ -72,7 +72,7 @@ def render_prediction(img, caption_text):
     display_col, result_col = st.columns([1.2, 1])
 
     with display_col:
-        st.image(img, caption=caption_text, use_container_width=True)
+        st.image(img, caption=caption_text, use_column_width=True)
 
     img_pil = Image.fromarray(img).convert("RGB")
     img_resized = img_pil.resize((224, 224))
